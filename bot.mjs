@@ -42,10 +42,23 @@ if (process.argv.includes('--discover')) {
     }
     return config.split('#')[0] + '#' + encodeURIComponent(label);
   }
-  for (const [index, item] of selected.entries()) {
-    const config = rename(item.uri, index + 1);
-    const message = `🌱 هنوز هم می‌شود به فردا امیدوار بود\n\n<blockquote expandable>${escape(config)}</blockquote>\n\n⚡️ پینگ: ${Math.round(item.ms)} ms\n🚀 کانال ما: @pass_net`;
-    await telegram('sendMessage', { chat_id: chatId, text: message, parse_mode: 'HTML', link_preview_options: { is_disabled: true } });
-  }
-  console.log(`Sent ${selected.length} tested configurations.`);
+  const poems = [
+    'رسید مژده که ایام غم نخواهد ماند\nچنان نماند و چنین نیز هم نخواهد ماند\n— حافظ',
+    'دوش وقت سحر از غصه نجاتم دادند\nو اندر آن ظلمت شب آب حیاتم دادند\n— حافظ',
+    'بر سر آنم که گر ز دست برآید\nدست به کاری زنم که غصه سر آید\n— حافظ',
+    'درخت دوستی بنشان که کام دل به بار آرد\nنهال دشمنی برکن که رنج بی‌شمار آرد\n— حافظ',
+    'هر روز فرصتی تازه برای شروع دوباره است 🌱',
+    'نابرده رنج گنج میسر نمی‌شود\nمزد آن گرفت جان برادر که کار کرد\n— سعدی',
+    'بنی‌آدم اعضای یک پیکرند\nکه در آفرینش ز یک گوهرند\n— سعدی',
+  ];
+  const date = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Tehran', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
+  const day = Math.floor(Date.parse(`${date}T00:00:00Z`) / 86400000);
+  const poem = poems[day % poems.length];
+  const configs = selected.map((item, index) => ({ config: rename(item.uri, index + 1), ping: Math.round(item.ms) }));
+  const plainLength = [poem, ...configs.map(item => `⚡️ ${item.ping} ms\n${item.config}`), '🚀 کانال ما: @pass_net'].join('\n\n').length;
+  if (plainLength > 4096) throw new Error('Five configurations exceed Telegram’s message limit; nothing sent.');
+  const sections = configs.map(item => `⚡️ ${item.ping} ms\n<blockquote><code>${escape(item.config)}</code></blockquote>`);
+  const message = `${escape(poem)}\n\n${sections.join('\n\n')}\n\n🚀 کانال ما: @pass_net`;
+  await telegram('sendMessage', { chat_id: chatId, text: message, parse_mode: 'HTML', link_preview_options: { is_disabled: true } });
+  console.log(`Sent ${selected.length} tested configurations in one message.`);
 }
