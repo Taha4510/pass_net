@@ -29,7 +29,17 @@ if (process.argv.includes('--discover')) {
   const output = await readFile('results.jsonl', 'utf8');
   const events = output.split(/\r?\n/).filter(line => line.startsWith('PSJSON:')).map(line => JSON.parse(line.slice(7)));
   if (!events.some(item => item.type === 'done')) throw new Error('Proxy test did not finish; nothing sent.');
-  const selected = events.filter(item => item.type === 'result' && item.uri && Number.isFinite(item.ms)).sort((a, b) => a.ms - b.ms).slice(0, 5);
+  const ranked = events.filter(item => item.type === 'result' && item.uri && Number.isFinite(item.ms)).sort((a, b) => a.ms - b.ms);
+  const protocol = uri => uri.slice(0, uri.indexOf('://')).toLowerCase();
+  const selected = [];
+  for (const item of ranked) {
+    if (!selected.some(existing => protocol(existing.uri) === protocol(item.uri))) selected.push(item);
+    if (selected.length === 5) break;
+  }
+  for (const item of ranked) {
+    if (!selected.includes(item)) selected.push(item);
+    if (selected.length === 5) break;
+  }
   if (!selected.length) throw new Error('No working configurations found; nothing sent.');
   const escape = text => text.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;');
   function rename(config, index) {
