@@ -55,10 +55,10 @@ if (process.argv.includes('--discover')) {
   const day = Math.floor(Date.parse(`${date}T00:00:00Z`) / 86400000);
   const poem = poems[day % poems.length];
   const configs = selected.map((item, index) => ({ config: rename(item.uri, index + 1), ping: Math.round(item.ms) }));
-  const plainLength = [poem, ...configs.map(item => `⚡️ ${item.ping} ms\n${item.config}`), '🚀 کانال ما: @pass_net'].join('\n\n').length;
+  const combined = configs.map(item => item.config).join('\n');
+  const plainLength = [poem, combined, '🚀 کانال ما: @pass_net'].join('\n\n').length;
   if (plainLength > 4096) throw new Error('Five configurations exceed Telegram’s message limit; nothing sent.');
-  const sections = configs.map(item => `⚡️ ${item.ping} ms\n<blockquote><code>${escape(item.config)}</code></blockquote>`);
-  const message = `${escape(poem)}\n\n${sections.join('\n\n')}\n\n🚀 کانال ما: @pass_net`;
+  const message = `${escape(poem)}\n\n<blockquote expandable><code>${escape(combined)}</code></blockquote>\n\n🚀 کانال ما: @pass_net`;
   await telegram('sendMessage', { chat_id: chatId, text: message, parse_mode: 'HTML', link_preview_options: { is_disabled: true } });
   console.log(`Sent ${selected.length} tested configurations in one message.`);
 }
