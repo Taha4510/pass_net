@@ -59,9 +59,16 @@ test('a long configuration does not prevent a shorter ranked result from being p
 
 test('poetry changes at midnight in Tehran', () => {
   const ranked = selectResults([success('one')]);
-  const before = renderMessage(ranked, new Date('2026-11-19T20:29:59Z'));
-  const after = renderMessage(ranked, new Date('2026-11-19T20:30:00Z'));
+  const before = renderMessage(ranked, new Date('2026-11-19T20:29:59Z'), '');
+  const after = renderMessage(ranked, new Date('2026-11-19T20:30:00Z'), '');
   assert.notEqual(before.text.split('\n\n')[0], after.text.split('\n\n')[0]);
+});
+
+test('each of 1000 consecutive workflow runs uses a different verse', () => {
+  const ranked = selectResults([success('one')]);
+  const verses = new Set(Array.from({ length: 1000 }, (_, index) =>
+    renderMessage(ranked, new Date('2026-11-19T12:00:00Z'), String(index + 1)).text.split('\n\n')[0]));
+  assert.equal(verses.size, 1000);
 });
 
 test('Telegram rate limits retry an explicitly rejected request', async () => {
