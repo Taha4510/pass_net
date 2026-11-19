@@ -46,6 +46,9 @@ test('only reliable Trojan entries are ranked and credentials/transports are lef
   const message = renderMessage(selectResults(results));
   assert.equal(message.count, 2);
   assert.equal((message.text.match(/<code>/g) ?? []).length, 1);
+  assert.match(message.text, /^🌸 /);
+  assert.match(message.text, /عضو کانال بشید و از سرعت لذت ببرید/);
+  assert.match(message.text, /کانال ما: @pass_net/);
   assert.match(message.text, /one\.example:443\?security=tls&amp;sni=target\.example#%40pass_net%201\ntrojan:\/\/dummy@fast\.example/);
   assert.doesNotMatch(message.text, /unreliable|ss:\/\/|slow\.example/);
 });
