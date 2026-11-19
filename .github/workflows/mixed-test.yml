@@ -1,0 +1,56 @@
+name: Mixed proxy test group
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: mixed-test-group
+  cancel-in-progress: false
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify selection and formatting
+        run: node --test bot.test.mjs mixed-test.test.mjs
+      - name: Fetch pinned tester
+        run: |
+          git init -q .proxysmith
+          git -C .proxysmith fetch --depth=1 https://github.com/soroushyasini/proxysmith.git 31c13f857bbc67e794f795c2d6a42b91f679651b
+          git -C .proxysmith checkout -q --detach FETCH_HEAD
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.26'
+          cache-dependency-path: .proxysmith/go/go.sum
+      - name: Build tester
+        working-directory: .proxysmith/go
+        run: go build -o "$RUNNER_TEMP/proxysmith-bin" .
+      - name: Test both subscriptions
+        run: |
+          test_one() {
+            name="$1"
+            url="$2"
+            status=0
+            timeout --kill-after=5s 240s "$RUNNER_TEMP/proxysmith-bin" \
+              --sub-url "$url" --test-count 500 --sample-n 1 --max-ping-ms 5000 \
+              --test-url 'https://cp.cloudflare.com/generate_204' \
+              --concurrency 20 --output-format jsonl > "$name.jsonl" || status=$?
+            printf '%s\n' "$status" > "$name.exit"
+          }
+          test_one trojan 'https://raw.githubusercontent.com/barry-far/V2ray-config/main/Splitted-By-Protocol/trojan.txt' &
+          a=$!
+          test_one ss 'https://raw.githubusercontent.com/barry-far/V2ray-config/main/Splitted-By-Protocol/ss.txt' &
+          b=$!
+          wait "$a"
+          wait "$b"
+      - name: Send one message to test group
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: node mixed-test.mjs
