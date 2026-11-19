@@ -30,7 +30,15 @@ if (process.argv.includes('--discover')) {
   const events = output.split(/\r?\n/).filter(line => line.startsWith('PSJSON:')).map(line => JSON.parse(line.slice(7)));
   if (!events.some(item => item.type === 'done')) throw new Error('Proxy test did not finish; nothing sent.');
   const selected = events.filter(item => item.type === 'result' && item.uri?.toLowerCase().startsWith('trojan://') && Number.isFinite(item.ms)).sort((a, b) => a.ms - b.ms).slice(0, 5);
-  if (!selected.length) throw new Error('No working configurations found; nothing sent.');
+  if (!selected.length) {
+    await telegram('sendMessage', {
+      chat_id: chatId,
+      text: '⚠️ این نوبت هیچ کانفیگ Trojan سالمی پیدا نشد؛ کانفیگ خراب منتشر نشد.',
+      link_preview_options: { is_disabled: true },
+    });
+    console.log('No working Trojan configurations; sent status message.');
+    process.exit(0);
+  }
   const escape = text => text.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;');
   function rename(config, index) {
     const label = `@pass_net ${index}`;
