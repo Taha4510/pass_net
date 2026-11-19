@@ -67,7 +67,7 @@ jobs:
         run: |
           status=0
           timeout --kill-after=5s 190s "$RUNNER_TEMP/proxysmith-bin" \
-            --sub-url 'https://raw.githubusercontent.com/barry-far/V2ray-config/main/Sub3.txt' \
+            --sub-url 'https://raw.githubusercontent.com/barry-far/V2ray-config/main/Splitted-By-Protocol/trojan.txt' \
             --test-count 500 --sample-n 1 --max-ping-ms 5000 \
             --test-url 'https://cp.cloudflare.com/generate_204' \
             --concurrency 20 --output-format jsonl > results.jsonl || status=$?
