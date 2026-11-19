@@ -76,9 +76,9 @@ jobs:
             --concurrency 20 --output-format jsonl > results.jsonl || status=$?
           printf '%s\n' "$status" > tester-exit.txt
           node bot.mjs --check-results
-      - name: Publish to test group
+      - name: Publish to channel
         if: github.event_name == 'schedule' || inputs.mode == 'publish'
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          TELEGRAM_CHAT_ID: '@pass_net'
         run: node bot.mjs
