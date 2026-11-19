@@ -7,7 +7,7 @@ const channel = '@pass_net';
 const maxDelayMs = 5000;
 const maxMessageLength = 4096;
 const warning = '⚠️ تست این نوبت کامل شد؛ هیچ کانفیگ Trojan معیار اتصال پایدار را نگذراند.';
-const footer = '🚀 کانال ما: ' + channel;
+const footer = '❤️ عضو کانال بشید و از سرعت لذت ببرید ⚡️\n🚀 کانال ما: ' + channel + ' 🚀';
 const poems = [
   "الا یا ایها الساقی ادر کأسا و ناولها\nکه عشق آسان نمود اول ولی افتاد مشکل ها\n— حافظ",
   "اول دفتر به نام ایزد دانا\nصانع پروردگار حی توانا\n— سعدی",
@@ -1089,7 +1089,7 @@ export function renderMessage(results, now = new Date(), runNumber) {
   return {
     count: configs.length,
     parse_mode: 'HTML',
-    text: `${escapeHtml(poem)}\n\n<blockquote expandable><code>${escapeHtml(configs.join('\n'))}</code></blockquote>\n\n${escapeHtml(footer)}`,
+    text: `🌸 ${escapeHtml(poem)}\n\n<blockquote expandable><code>${escapeHtml(configs.join('\n'))}</code></blockquote>\n\n${escapeHtml(footer)}`,
   };
 }
 
@@ -1132,6 +1132,17 @@ export async function telegram(token, method, payload = {}, fetchImpl = fetch, w
 async function main() {
   const [mode] = process.argv.slice(2);
   const token = process.env.TELEGRAM_BOT_TOKEN;
+  if (mode === '--check-channel') {
+    const me = await telegram(token, 'getMe');
+    const chat = await telegram(token, 'getChat', { chat_id: channel });
+    if (chat?.type !== 'channel' || !Number.isSafeInteger(me?.id)) throw new Error('The target is not an accessible channel.');
+    const member = await telegram(token, 'getChatMember', { chat_id: chat.id, user_id: me.id });
+    if (member?.status !== 'creator' && !(member?.status === 'administrator' && member.can_post_messages === true)) {
+      throw new Error('The bot needs permission to post in the target channel.');
+    }
+    console.log('The bot can post messages in the target channel.');
+    return;
+  }
   if (mode === '--discover') {
     const updates = await telegram(token, 'getUpdates', { allowed_updates: ['message', 'my_chat_member'] });
     const chats = new Map();
