@@ -37,11 +37,12 @@ jobs:
           git clone https://github.com/soroushyasini/proxysmith.git "$RUNNER_TEMP/proxysmith"
           git -C "$RUNNER_TEMP/proxysmith" checkout 31c13f857bbc67e794f795c2d6a42b91f679651b
           cd "$RUNNER_TEMP/proxysmith/go"
+          python3 -c 'from pathlib import Path; p=Path("main.go"); s=p.read_text(); old="\temit(map[string]interface{}{\"type\": \"fetched\", \"count\": len(uris)})"; assert s.count(old)==1; p.write_text(s.replace(old, "\tfiltered := uris[:0]\n\tfor _, uri := range uris {\n\t\tif strings.HasPrefix(strings.ToLower(uri), \"trojan://\") { filtered = append(filtered, uri) }\n\t}\n\turis = filtered\n"+old))'
           go build -o "$RUNNER_TEMP/proxysmith-bin" .
       - name: Download and test subscription
         if: github.event_name == 'schedule' || inputs.mode == 'publish'
         run: |
-          "$RUNNER_TEMP/proxysmith-bin" --sub-url 'https://raw.githubusercontent.com/barry-far/V2ray-config/main/Sub3.txt' --test-count 500 --sample-n 3 --max-ping-ms 5000 --test-url 'https://cp.cloudflare.com/generate_204' --concurrency 20 --output-format jsonl > results.jsonl
+          "$RUNNER_TEMP/proxysmith-bin" --sub-url 'https://raw.githubusercontent.com/barry-far/V2ray-config/main/Sub3.txt' --test-count 500 --sample-n 1 --max-ping-ms 5000 --test-url 'https://cp.cloudflare.com/generate_204' --concurrency 20 --output-format jsonl > results.jsonl
       - name: Publish to test group
         if: github.event_name == 'schedule' || inputs.mode == 'publish'
         env:
