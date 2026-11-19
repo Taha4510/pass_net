@@ -1,24 +1,30 @@
 name: Test and publish configurations
 on:
   schedule:
-    - cron: '*/5 * * * *'
+    - cron: '3-58/5 * * * *'
   workflow_dispatch:
     inputs:
       mode:
-        description: discover group ID or publish tested configs
+        description: Discover the group, verify without sending, or publish
         type: choice
-        options: [discover, publish]
-        default: discover
+        options: [verify, publish, discover]
+        default: verify
 
 permissions:
   contents: read
 
+concurrency:
+  group: proxy-test-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
   run:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 8
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
@@ -27,22 +33,46 @@ jobs:
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
         run: node bot.mjs --discover
+      - name: Check bot behavior
+        if: inputs.mode != 'discover'
+        run: node --test bot.test.mjs
+      - name: Fetch pinned proxy tester
+        if: inputs.mode != 'discover'
+        run: |
+          git init -q .proxysmith
+          git -C .proxysmith fetch --depth=1 https://github.com/soroushyasini/proxysmith.git 31c13f857bbc67e794f795c2d6a42b91f679651b
+          git -C .proxysmith checkout -q --detach FETCH_HEAD
       - uses: actions/setup-go@v5
-        if: github.event_name == 'schedule' || inputs.mode == 'publish'
+        if: inputs.mode != 'discover'
         with:
           go-version: '1.26'
+          cache-dependency-path: .proxysmith/go/go.sum
       - name: Build proxy tester
-        if: github.event_name == 'schedule' || inputs.mode == 'publish'
+        if: inputs.mode != 'discover'
+        working-directory: .proxysmith/go
         run: |
-          git clone https://github.com/soroushyasini/proxysmith.git "$RUNNER_TEMP/proxysmith"
-          git -C "$RUNNER_TEMP/proxysmith" checkout 31c13f857bbc67e794f795c2d6a42b91f679651b
-          cd "$RUNNER_TEMP/proxysmith/go"
-          python3 -c 'from pathlib import Path; p=Path("main.go"); s=p.read_text(); old="\temit(map[string]interface{}{\"type\": \"fetched\", \"count\": len(uris)})"; assert s.count(old)==1; p.write_text(s.replace(old, "\tfiltered := uris[:0]\n\tfor _, uri := range uris {\n\t\tif strings.HasPrefix(strings.ToLower(uri), \"trojan://\") { filtered = append(filtered, uri) }\n\t}\n\turis = filtered\n"+old))'
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path("fetch.go")
+          source = path.read_text()
+          before = 'if isValidURI(line) {'
+          after = 'if strings.HasPrefix(strings.ToLower(line), "trojan://") {'
+          assert source.count(before) == 1, "ProxySmith input parser did not match the pinned revision"
+          path.write_text(source.replace(before, after))
+          PY
           go build -o "$RUNNER_TEMP/proxysmith-bin" .
       - name: Download and test subscription
-        if: github.event_name == 'schedule' || inputs.mode == 'publish'
+        if: inputs.mode != 'discover'
         run: |
-          "$RUNNER_TEMP/proxysmith-bin" --sub-url 'https://raw.githubusercontent.com/barry-far/V2ray-config/main/Sub3.txt' --test-count 500 --sample-n 1 --max-ping-ms 5000 --test-url 'https://cp.cloudflare.com/generate_204' --concurrency 20 --output-format jsonl > results.jsonl
+          status=0
+          timeout --kill-after=5s 190s "$RUNNER_TEMP/proxysmith-bin" \
+            --sub-url 'https://raw.githubusercontent.com/barry-far/V2ray-config/main/Sub3.txt' \
+            --test-count 500 --sample-n 1 --max-ping-ms 5000 \
+            --test-url 'https://cp.cloudflare.com/generate_204' \
+            --concurrency 20 --output-format jsonl > results.jsonl || status=$?
+          printf '%s\n' "$status" > tester-exit.txt
+          node bot.mjs --check-results
       - name: Publish to test group
         if: github.event_name == 'schedule' || inputs.mode == 'publish'
         env:
